@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yatzy Score Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+/* Same table-side tool as the 5000 counter, on green felt.
+   Scoring follows the Carlit / Ravensburger "Yatzy & Chicago" rules: 15 boxes,
+   upper-section bonus of 25, pair/two pairs/3/4 of a kind/full house/chance score the dice summed,
+   Yatzy 50. House rule: straights score the dice summed: small (4 in a row) 10/14/18,
+   large (5 in a row) 15/20. */
+:root{color-scheme:light dark;
+  --felt:light-dark(#17704a,#0d3323);--felt2:light-dark(#0f5a3a,#08241a);
+  --card:light-dark(#fbf6ec,#1b211e);--ink:light-dark(#1d1416,#f2eee6);--soft:light-dark(#6b5f5c,#a9b3ad);
+  --line:light-dark(#e6dccb,#33403a);--sum:light-dark(#f1e8d6,#26302b);--gold:#ffc531;
+  --onbg:light-dark(#fff1c7,#3b3518);--on:light-dark(#fff,#f2eee6);--accent:light-dark(#14613f,#7fd3a6)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:radial-gradient(120% 80% at 50% 0%,var(--felt),var(--felt2));background-attachment:fixed;color:var(--on);font:16px/1.5 Rubik,system-ui,sans-serif;min-height:100vh;overflow-x:clip}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;border-radius:12px;min-height:44px}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.wrap{max-width:1240px;margin:0 auto;padding:20px max(4vw,14px) 120px}
+.home{display:inline-flex;align-items:center;min-height:44px;color:var(--on);opacity:.85;text-decoration:none;font-size:15px;font-weight:500}
+.home:hover{opacity:1;text-decoration:underline}
+h1{margin:0;font-weight:900;font-size:clamp(34px,6vw,52px);line-height:1.05;display:flex;align-items:center;gap:12px}
+h1 svg{width:46px;height:46px;flex:none;transform:rotate(-8deg)}
+form.add{display:flex;gap:10px;margin:20px 0 16px}
+form.add input{flex:1;height:52px;border-radius:14px;border:0;padding:0 16px;font-size:17px;background:var(--card);color:var(--ink)}
+form.add button{background:var(--gold);color:#1d1416;font-weight:700;padding:0 22px;font-size:17px}
+.turn{font-size:17px;margin:0 0 12px;min-height:26px}.turn b{color:var(--gold)}
+.recent{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:-4px 0 18px}
+.recent[hidden]{display:none}
+.recent .rl{font-size:14px;opacity:.8;margin-inline-end:2px}
+.chip{display:inline-flex;align-items:center;background:rgb(255 255 255/.16);border-radius:99px}
+.chip button{background:none;color:var(--on);border-radius:99px;font-weight:500;padding:0 4px 0 14px}
+.chip button.forget{padding:0 12px 0 6px;opacity:.65;font-size:18px}
+.chip button.forget:hover{opacity:1}
+
+.sheet{background:var(--card);color:var(--ink);border-radius:20px;box-shadow:0 10px 24px rgb(0 0 0/.28);overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:separate;border-spacing:0;width:100%}
+th,td{border-bottom:1px solid var(--line)}
+th.cat{position:sticky;left:0;z-index:2;background:var(--card);text-align:start;padding:6px 10px 6px 14px;width:150px;min-width:132px;max-width:170px;border-right:1px solid var(--line);font-weight:400}
+th.cat b{display:block;font-size:15.5px;line-height:1.2}
+th.cat small{display:block;font-size:12px;color:var(--soft);line-height:1.25}
+thead th{padding:6px 4px;border-bottom:2px solid var(--line)}
+thead th.cat{font-size:13px;color:var(--soft)}
+th.pl button{width:100%;min-width:70px;background:none;font-weight:700;font-size:16px;padding:4px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+th.pl .star{color:#d99a00;margin-inline-end:3px}
+td{padding:3px;text-align:center;min-width:72px}
+th.on,td.on{background:var(--onbg)}
+thead th.on{box-shadow:inset 0 4px 0 var(--gold)}
+.cell{width:100%;min-height:46px;background:transparent;font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+.cell.empty{border:1.5px dashed var(--line)}
+.cell.empty:hover{border-color:var(--accent)}
+.cell.zero{color:var(--soft);font-weight:500}
+.cell.pop{animation:pop .35s}
+@keyframes pop{40%{transform:scale(1.15)}}
+tr.sum th.cat,tr.sum td{background:var(--sum)}
+tr.sum td.on{background:color-mix(in srgb,var(--sum),var(--gold) 22%)}
+tr.sum td{font-weight:900;font-size:19px;padding:6px 4px;font-variant-numeric:tabular-nums}
+tr.sum td small{display:block;font-size:12px;font-weight:500;color:var(--soft);line-height:1.2}
+tr.sum td small.good{color:var(--accent)}
+tr.total td{font-size:26px}
+tr.total th.cat b{font-size:18px}
+tr.total th,tr.total td{border-bottom:0}
+tr.gap th,tr.gap td{border-top:3px solid var(--line)}
+@media(max-width:520px){th.cat{width:112px;min-width:104px;padding-left:10px}th.cat b{font-size:14.5px}th.cat small{font-size:11px}td{min-width:62px}}
+
+.empty-state{text-align:center;padding:50px 16px;opacity:.95}
+.empty-state svg{width:96px;height:96px;margin-bottom:10px}
+
+.bar-bottom{position:fixed;left:0;right:0;bottom:0;background:rgb(4 20 12/.82);backdrop-filter:blur(8px);padding:10px max(4vw,12px) calc(10px + env(safe-area-inset-bottom));z-index:5}
+.bar-bottom .in{max-width:1240px;margin:0 auto;display:flex;gap:8px;flex-wrap:wrap}
+.bar-bottom button{flex:1 1 110px;font-weight:700;font-size:16px;background:rgb(255 255 255/.14);color:#fff;padding:0 12px}
+.bar-bottom button.next{background:var(--gold);color:#1d1416;flex-grow:1.6}
+.bar-bottom button:disabled{opacity:.4;cursor:default}
+
+.ov{position:fixed;inset:0;background:rgb(0 0 0/.55);display:grid;place-items:center;padding:16px;z-index:9}
+.ov[hidden]{display:none}
+.box{background:var(--card);color:var(--ink);border-radius:20px;padding:22px;max-width:440px;width:100%;box-shadow:0 20px 50px rgb(0 0 0/.4);max-height:calc(100vh - 32px);overflow-y:auto}
+.box h3{margin:0 0 4px;font-size:23px;line-height:1.15}
+.box p{margin:0 0 16px;color:var(--soft)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row button{flex:1 1 120px;font-weight:700;padding:0 14px;background:var(--line)}
+.row button.ok{background:var(--accent);color:var(--card)}
+.row button.danger{background:none;border:1.5px solid #c0392b;color:#c0392b}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:8px;margin-bottom:12px}
+.opts button{min-height:58px;background:var(--sum);font-size:21px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;padding:4px}
+.opts button small{font-size:15px;font-weight:400;color:var(--soft);letter-spacing:-1px}
+.opts button.sel{box-shadow:0 0 0 3px var(--gold)}
+.opts button:active{transform:scale(.95)}
+#plName{width:100%;height:48px;border-radius:12px;border:2px solid var(--line);padding:0 12px;font-size:17px;background:transparent;margin-bottom:12px}
+#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#1d1416;color:#fff;padding:10px 18px;border-radius:99px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:10;white-space:nowrap}
+#toast.show{opacity:1}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home" href="./">← All games</a>
+  <h1><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="3" y="5" width="40" height="40" rx="9" fill="#00000033"/><rect x="4" y="2" width="40" height="40" rx="9" fill="#fbf6ec"/><g fill="#1d1416"><circle cx="14" cy="11" r="3.6"/><circle cx="34" cy="11" r="3.6"/><circle cx="14" cy="22" r="3.6"/><circle cx="34" cy="22" r="3.6"/><circle cx="14" cy="33" r="3.6"/><circle cx="34" cy="33" r="3.6"/></g></svg>Yatzy</h1>
+
+  <form class="add" id="addForm">
+    <input id="pname" placeholder="Player name" autocomplete="off" maxlength="24" aria-label="Player name">
+    <button type="submit">Add player</button>
+  </form>
+  <div class="recent" id="recent" hidden><span class="rl">Recent players:</span><span id="recentList" style="display:contents"></span></div>
+
+  <p class="turn" id="turn"></p>
+  <div id="board"></div>
+</div>
+
+<div class="bar-bottom"><div class="in">
+  <button id="undo">↶ Undo</button>
+  <button id="next" class="next">Next player →</button>
+  <button id="restart">Restart</button>
+  <button id="newgame">New game</button>
+</div></div>
+
+<!-- score picker -->
+<div class="ov" id="pk" hidden><div class="box" role="dialog" aria-modal="true" aria-labelledby="pkT">
+  <h3 id="pkT"></h3><p id="pkH"></p>
+  <div class="opts" id="pkOpts"></div>
+  <div class="row"><button id="pkClear" class="danger">Clear box</button><button id="pkZero">Cross out (0)</button><button id="pkCancel">Cancel</button></div>
+</div></div>
+
+<!-- player options -->
+<div class="ov" id="pl" hidden><div class="box" role="dialog" aria-modal="true" aria-labelledby="plT">
+  <h3 id="plT">Player</h3><p>Rename, give them the turn, or remove them.</p>
+  <input id="plName" maxlength="24" aria-label="Player name">
+  <div class="row"><button id="plDel" class="danger">Remove</button><button id="plTurn">Their turn</button><button id="plSave" class="ok">Save</button></div>
+</div></div>
+
+<!-- confirm -->
+<div class="ov" id="dlg" hidden><div class="box" role="dialog" aria-modal="true" aria-labelledby="dlgT">
+  <h3 id="dlgT"></h3><p id="dlgP"></p>
+  <div class="row"><button id="dlgNo"></button><button id="dlgOk" class="ok"></button></div>
+</div></div>
+<div id="toast" role="status"></div>
+
+<script>
+{
+const KEY='yatzy-v1', BONUS_AT=63, BONUS=25;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const D='⚀⚁⚂⚃⚄⚅';
+const range=(a,b)=>{const r=[];for(let i=a;i<=b;i++)r.push(i);return r};
+const uniq=a=>[...new Set(a)].sort((x,y)=>x-y);
+const pairs=[],fulls=[];
+for(let a=1;a<=6;a++)for(let b=1;b<=6;b++){if(a<b)pairs.push(2*a+2*b);if(a!==b)fulls.push(3*a+2*b)}
+
+const UP=['Ones','Twos','Threes','Fours','Fives','Sixes'].map((l,i)=>({k:'u'+(i+1),l,face:i+1,
+  h:`Add up the ${D[i]} (${i+1}s)`,opts:range(1,5).map(n=>({v:n*(i+1),t:D[i].repeat(n)}))}));
+const LOW=[
+  {k:'p1',l:'1 Pair',h:'2 the same, summed — 3+3 = 6',opts:range(1,6).map(f=>({v:2*f,t:D[f-1].repeat(2)}))},
+  {k:'p2',l:'2 Pairs',h:'4+4 and 5+5 = 18',opts:uniq(pairs).map(v=>({v}))},
+  {k:'k3',l:'3 of a kind',h:'5+5+5 = 15',opts:range(1,6).map(f=>({v:3*f,t:D[f-1].repeat(3)}))},
+  {k:'k4',l:'4 of a kind',h:'1+1+1+1 = 4',opts:range(1,6).map(f=>({v:4*f,t:D[f-1].repeat(4)}))},
+  {k:'ss',l:'Small straight',h:'4 in a row, summed: 1234 = 10 · 2345 = 14 · 3456 = 18',opts:[{v:10,t:'⚀⚁⚂⚃'},{v:14,t:'⚁⚂⚃⚄'},{v:18,t:'⚂⚃⚄⚅'}]},
+  {k:'ls',l:'Large straight',h:'5 in a row, summed: 12345 = 15 · 23456 = 20',opts:[{v:15,t:'⚀⚁⚂⚃⚄'},{v:20,t:'⚁⚂⚃⚄⚅'}]},
+  {k:'fh',l:'Full house',h:'Pair + 3 the same, summed — 3+3+5+5+5 = 21',opts:uniq(fulls).map(v=>({v}))},
+  {k:'ch',l:'Chance',h:'Any roll, sum of all dice',opts:range(5,30).map(v=>({v}))},
+  {k:'y',l:'Yatzy',h:'5 the same = 50',opts:[{v:50,t:'⚅⚅⚅⚅⚅'}]},
+];
+const CATS=[...UP,...LOW], NCATS=CATS.length;
+
+let S=null,H=[],pop=null,pk=null,plI=null,toastT;
+try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!Array.isArray(S.players))S={players:[],cur:0};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const snap=()=>{H.push(JSON.stringify(S));if(H.length>300)H.shift()};
+
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1800)}
+function show(id){$(id).hidden=false}
+function hide(id){$(id).hidden=true}
+function ask(title,text,ok,no,fn){
+  $('dlgT').textContent=title;$('dlgP').textContent=text;$('dlgOk').textContent=ok;$('dlgNo').textContent=no;
+  show('dlg');$('dlgOk').focus();
+  $('dlgOk').onclick=()=>{hide('dlg');fn&&fn()};$('dlgNo').onclick=()=>hide('dlg');
+}
+
+function calc(p){
+  const s=p.sc;let up=0,par=0,upDone=0,low=0,filled=0;
+  UP.forEach(c=>{if(s[c.k]!=null){up+=s[c.k];par+=3*c.face;upDone++}});
+  LOW.forEach(c=>{if(s[c.k]!=null)low+=s[c.k]});
+  CATS.forEach(c=>{if(s[c.k]!=null)filled++});
+  const bonus=up>=BONUS_AT?BONUS:(upDone===6?0:null);
+  return {up,diff:up-par,upDone,bonus,low,total:up+(bonus||0)+low,filled};
+}
+
+function render(){
+  const n=S.players.length;if(S.cur>=n)S.cur=0;
+  const R=S.players.map(calc);
+  const best=n?Math.max(...R.map(r=>r.total)):0;
+  const on=j=>j===S.cur&&n>1?' on':'';
+  if(!n){
+    $('board').innerHTML=`<div class="empty-state"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="4" y="4" width="40" height="40" rx="9" fill="#fbf6ec"/><g fill="#14613f"><circle cx="14" cy="14" r="4"/><circle cx="34" cy="14" r="4"/><circle cx="14" cy="34" r="4"/><circle cx="34" cy="34" r="4"/></g></svg><div style="font-size:19px;font-weight:700">No players yet</div><div>Type a name above and hit Add player.</div></div>`;
+  }else{
+    const cellRow=(c,cls='')=>`<tr class="${cls}"><th class="cat" scope="row"><b>${c.l}</b><small>${c.h}</small></th>${S.players.map((p,j)=>{
+      const v=p.sc[c.k],key=p.id+c.k;
+      return `<td class="${on(j).trim()}"><button class="cell${v==null?' empty':''}${v===0?' zero':''}${pop===key?' pop':''}" data-i="${j}" data-k="${c.k}" aria-label="${esc(p.name)}, ${c.l}: ${v==null?'empty':v}">${v==null?'':v}</button></td>`}).join('')}</tr>`;
+    let h=`<table><thead><tr><th class="cat" scope="col">Player</th>${S.players.map((p,j)=>
+      `<th class="pl${on(j)}" scope="col"><button data-pl="${j}" title="Rename / remove">${best>0&&R[j].total===best?'<span class="star" aria-label="leading">★</span>':''}${esc(p.name)}</button></th>`).join('')}</tr></thead><tbody>`;
+    h+=UP.map(c=>cellRow(c)).join('');
+    h+=`<tr class="sum gap"><th class="cat" scope="row"><b>Sum</b><small>Upper section</small></th>${R.map((r,j)=>
+      `<td class="${on(j).trim()}">${r.up}${r.upDone?`<small class="${r.diff>=0?'good':''}">${r.diff>=0?'+':'−'}${Math.abs(r.diff)} vs 3 each</small>`:''}</td>`).join('')}</tr>`;
+    h+=`<tr class="sum"><th class="cat" scope="row"><b>Bonus</b><small>${BONUS_AT} or more = ${BONUS}</small></th>${R.map((r,j)=>
+      `<td class="${on(j).trim()}">${r.bonus!=null?r.bonus:`–<small>need ${BONUS_AT-r.up}</small>`}</td>`).join('')}</tr>`;
+    h+=LOW.map((c,i)=>cellRow(c,i===0?'gap':'')).join('');
+    h+=`<tr class="sum total gap"><th class="cat" scope="row"><b>Total</b><small>${NCATS} boxes</small></th>${R.map((r,j)=>
+      `<td class="${on(j).trim()}">${r.total}<small>${r.filled}/${NCATS} filled</small></td>`).join('')}</tr>`;
+    $('board').innerHTML=`<div class="sheet">${h}</tbody></table></div>`;
+  }
+  pop=null;
+  const cur=S.players[S.cur];
+  $('turn').innerHTML=cur&&n>1?`Turn: <b>${esc(cur.name)}</b> · tap a box in their column`:(n===1?'Tap a box to enter a score.':'');
+  $('next').disabled=n<2;$('undo').disabled=!H.length;
+  $('restart').disabled=!n;$('newgame').disabled=!n;
+  renderRecent();
+  save();
+}
+
+function setVal(i,k,v){
+  const p=S.players[i];if(!p)return;
+  const was=p.sc[k];if(was===v)return;
+  snap();
+  if(v==null)delete p.sc[k];else p.sc[k]=v;
+  if(was==null&&v!=null&&S.players.length>1&&i===S.cur)S.cur=(i+1)%S.players.length;
+  pop=v!=null?p.id+k:null;
+  render();
+  if(v!=null&&S.players.every(q=>calc(q).filled===NCATS)){
+    const R=S.players.map(calc),best=Math.max(...R.map(r=>r.total));
+    const w=S.players.filter((q,j)=>R[j].total===best).map(q=>q.name);
+    ask(w.length>1?`🎉 Tie: ${w.join(' & ')}!`:`🎉 ${w[0]} wins!`,`${best} points. Play another round with the same players?`,'Play again','Close',restart);
+  }
+}
+
+function openPick(i,k){
+  const p=S.players[i],c=CATS.find(c=>c.k===k),v=p.sc[k];
+  pk={i,k};
+  $('pkT').textContent=`${p.name} · ${c.l}`;$('pkH').textContent=c.h;
+  $('pkOpts').innerHTML=c.opts.map(o=>`<button data-v="${o.v}" class="${v===o.v?'sel':''}"><span>${o.v}</span>${o.t?`<small aria-hidden="true">${o.t}</small>`:''}</button>`).join('');
+  $('pkClear').hidden=v==null;
+  show('pk');($('pkOpts').querySelector('.sel')||$('pkOpts').firstElementChild).focus();
+}
+$('pkOpts').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!pk)return;hide('pk');setVal(pk.i,pk.k,+b.dataset.v)});
+$('pkZero').onclick=()=>{hide('pk');setVal(pk.i,pk.k,0)};
+$('pkClear').onclick=()=>{hide('pk');setVal(pk.i,pk.k,null)};
+$('pkCancel').onclick=()=>hide('pk');
+
+function openPlayer(i){
+  plI=i;const p=S.players[i];
+  $('plT').textContent=p.name;$('plName').value=p.name;
+  $('plTurn').hidden=S.players.length<2||i===S.cur;
+  show('pl');$('plName').focus();$('plName').select();
+}
+$('plSave').onclick=()=>{const p=S.players[plI],v=$('plName').value.trim();hide('pl');if(p&&v&&v!==p.name){snap();p.name=v;remember(v);render()}};
+$('plName').addEventListener('keydown',e=>{if(e.key==='Enter')$('plSave').click()});
+$('plTurn').onclick=()=>{hide('pl');S.cur=plI;render()};
+$('plDel').onclick=()=>{const p=S.players[plI];hide('pl');
+  ask(`Remove ${p.name}?`,'Their scores are removed too (you can undo).','Remove','Cancel',()=>{
+    snap();const i=S.players.indexOf(p);S.players.splice(i,1);if(i<S.cur)S.cur--;render()})};
+
+$('board').addEventListener('click',e=>{
+  const c=e.target.closest('.cell');if(c)return openPick(+c.dataset.i,c.dataset.k);
+  const h=e.target.closest('[data-pl]');if(h)openPlayer(+h.dataset.pl);
+});
+
+// Recent players: shared with the 5000 page (same site), kept on this device.
+const RKEY='dice-recent-players';
+let recent=[];try{recent=JSON.parse(localStorage.getItem(RKEY))||[]}catch(e){}
+if(!Array.isArray(recent))recent=[];
+const saveRecent=()=>{try{localStorage.setItem(RKEY,JSON.stringify(recent))}catch(e){}};
+const remember=name=>{
+  if(/^Player \d+$/.test(name))return;
+  recent=[name,...recent.filter(r=>r.toLowerCase()!==name.toLowerCase())].slice(0,30);saveRecent();
+};
+function renderRecent(){
+  const inGame=new Set(S.players.map(p=>p.name.toLowerCase()));
+  const list=recent.filter(r=>!inGame.has(r.toLowerCase()));
+  $('recent').hidden=!list.length;
+  $('recentList').innerHTML=list.map(r=>`<span class="chip"><button type="button" data-add="${esc(r)}">+ ${esc(r)}</button><button type="button" class="forget" data-forget="${esc(r)}" aria-label="Forget ${esc(r)}" title="Forget">×</button></span>`).join('');
+}
+$('recent').addEventListener('click',e=>{
+  const a=e.target.closest('[data-add]'),f=e.target.closest('[data-forget]');
+  if(a)addPlayer(a.dataset.add);
+  else if(f){recent=recent.filter(r=>r!==f.dataset.forget);saveRecent();renderRecent()}
+});
+
+function addPlayer(name){
+  if(S.players.length>=10)return toast('10 players max');
+  snap();S.players.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,sc:{}});
+  remember(name);render();
+}
+$('addForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  addPlayer($('pname').value.trim()||'Player '+(S.players.length+1));
+  $('pname').value='';$('pname').focus();
+});
+
+function restart(){snap();S.players.forEach(p=>p.sc={});S.cur=0;render();toast('Scores cleared — same players')}
+$('next').onclick=()=>{if(S.players.length<2)return;snap();S.cur=(S.cur+1)%S.players.length;render()};
+$('undo').onclick=()=>{if(!H.length)return;S=JSON.parse(H.pop());render();toast('Undone')};
+$('restart').onclick=()=>ask('Restart the game?','All boxes are cleared. Players stay.','Restart','Cancel',restart);
+$('newgame').onclick=()=>ask('Start a new game?','Removes all players and scores.','New game','Cancel',()=>{snap();S.players=[];S.cur=0;render()});
+
+document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.hidden=true}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.ov').forEach(o=>o.hidden=true)});
+
+S.players.slice().reverse().forEach(p=>{if(!recent.some(r=>r.toLowerCase()===p.name.toLowerCase()))remember(p.name)});
+render();
+}
+</script>
+</body>
+</html>

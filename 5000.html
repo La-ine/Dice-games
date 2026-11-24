@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5000 Score Counter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+/* VOICE: quick, cheerful table-side tool — no fuss, big targets.
+   IDEA: a dice table — red felt with ivory score cards laid on it.
+   PICTURE: the scoreboard itself; a drawn five-pip die in the title.
+   COLOUR and TYPE: red felt dominant, ivory cards, gold ring for whose turn it is; Rubik 900 + Rubik.
+   LAYOUT: title + settings, add-player row, card grid, sticky action bar on the felt. */
+:root{color-scheme:light dark;
+  --felt:light-dark(#a3192b,#3d0b14);--felt2:light-dark(#8a1424,#2c070e);
+  --card:light-dark(#fbf6ec,#21171a);--ink:light-dark(#1d1416,#f5ede4);--soft:light-dark(#6b5a5c,#b9a8a6);
+  --line:light-dark(#e6dccb,#3a2a2d);--gold:#ffc531;--on:light-dark(#fff,#f5ede4)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:radial-gradient(120% 80% at 50% 0%,var(--felt),var(--felt2));background-attachment:fixed;color:var(--on);font:16px/1.5 Rubik,system-ui,sans-serif;min-height:100vh;overflow-x:clip}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;border-radius:12px;min-height:44px}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.wrap{max-width:1240px;margin:0 auto;padding:20px max(4vw,14px) 120px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;justify-content:space-between}
+h1{margin:0;font-weight:900;font-size:clamp(34px,6vw,52px);line-height:1.05;display:flex;align-items:center;gap:12px}
+h1 svg{width:46px;height:46px;flex:none;transform:rotate(-8deg)}
+.home{display:inline-flex;align-items:center;min-height:44px;color:var(--on);opacity:.85;text-decoration:none;font-size:15px;font-weight:500}
+.home:hover{opacity:1;text-decoration:underline}
+.set{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:15px}
+.set label{display:flex;align-items:center;gap:8px}
+.set input[type=number]{width:96px;height:44px;border-radius:10px;border:0;padding:0 10px;font-size:16px;background:rgb(255 255 255/.16);color:var(--on)}
+.set input[type=checkbox]{width:22px;height:22px;accent-color:var(--gold)}
+form.add{display:flex;gap:10px;margin:22px 0 18px}
+form.add input{flex:1;height:52px;border-radius:14px;border:0;padding:0 16px;font-size:17px;background:var(--card);color:var(--ink)}
+form.add button{background:var(--gold);color:#1d1416;font-weight:700;padding:0 22px;font-size:17px}
+.turn{font-size:17px;margin:0 0 14px;min-height:26px}.turn b{color:var(--gold)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));gap:16px}
+.card{background:var(--card);color:var(--ink);border-radius:20px;padding:16px;box-shadow:0 10px 24px rgb(0 0 0/.28),inset 0 -3px 0 var(--line);position:relative;transition:transform .15s}
+.card.on{box-shadow:0 0 0 4px var(--gold),0 14px 30px rgb(0 0 0/.35)}
+.top{display:flex;align-items:center;gap:8px}
+.rank{font-size:13px;font-weight:700;background:var(--line);border-radius:99px;padding:2px 9px;white-space:nowrap}
+.card.lead .rank{background:var(--gold);color:#1d1416}
+.name{flex:1;text-align:start;background:none;font-weight:700;font-size:19px;padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.name-in{flex:1;height:44px;font-size:17px;border:2px solid var(--gold);border-radius:10px;padding:0 8px;background:transparent}
+.x{background:none;width:44px;font-size:24px;color:var(--soft)}
+.score{font-weight:900;font-size:clamp(44px,8vw,58px);line-height:1.1;margin:6px 4px 8px;font-variant-numeric:tabular-nums}
+.score.pop{animation:pop .35s}
+@keyframes pop{40%{transform:scale(1.08)}}
+.bar{height:10px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--felt);border-radius:99px;transition:width .3s}
+.card.on .bar i{background:#d99a00}
+.left{font-size:14px;color:var(--soft);margin:6px 4px 12px}
+.btns{display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:8px}
+.btns button{min-height:58px;font-size:20px;font-weight:700;background:var(--line);color:var(--ink)}
+.btns button.k{background:var(--ink);color:var(--card)}
+.btns button:active{transform:scale(.95)}
+.minus{margin-top:8px;width:100%;background:none;border:1.5px dashed var(--line)!important;color:var(--soft);font-size:15px}
+.custom{display:flex;gap:8px;margin-top:8px}
+.custom input{flex:1;height:50px;border-radius:12px;border:1.5px solid var(--line);background:transparent;padding:0 12px;font-size:18px;font-weight:700;color:var(--ink)}
+.custom input::placeholder{font-weight:400;color:var(--soft)}
+.custom button{background:var(--felt);color:#fff;font-weight:700;font-size:17px;padding:0 18px;min-height:50px}
+.recent{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:-6px 0 18px}
+.recent[hidden]{display:none}
+.recent .rl{font-size:14px;opacity:.8;margin-inline-end:2px}
+.chip{display:inline-flex;align-items:center;background:rgb(255 255 255/.16);border-radius:99px}
+.chip button{background:none;color:var(--on);border-radius:99px;font-weight:500;padding:0 4px 0 14px}
+.chip button.forget{padding:0 12px 0 6px;opacity:.65;font-size:18px}
+.chip button.forget:hover{opacity:1}
+.empty{text-align:center;padding:50px 16px;opacity:.9}
+.empty svg{width:96px;height:96px;margin-bottom:10px}
+.bar-bottom{position:fixed;left:0;right:0;bottom:0;background:rgb(20 4 8/.82);backdrop-filter:blur(8px);padding:10px max(4vw,12px) calc(10px + env(safe-area-inset-bottom))}
+.bar-bottom .in{max-width:1240px;margin:0 auto;display:flex;gap:8px;flex-wrap:wrap}
+.bar-bottom button{flex:1 1 110px;font-weight:700;font-size:16px;background:rgb(255 255 255/.14);color:#fff;padding:0 12px}
+.bar-bottom button.next{background:var(--gold);color:#1d1416;flex-grow:1.6}
+.bar-bottom button:disabled{opacity:.4;cursor:default}
+.log{margin-top:28px;font-size:15px}
+.log h2{font-size:17px;margin:0 0 8px}
+.log ol{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.log li{background:rgb(0 0 0/.22);border-radius:99px;padding:4px 12px;white-space:nowrap}
+.log li.neg{opacity:.7}
+#dlg{position:fixed;inset:0;background:rgb(0 0 0/.55);display:grid;place-items:center;padding:16px;z-index:9}
+#dlg[hidden]{display:none}
+#dlg .box{background:var(--card);color:var(--ink);border-radius:20px;padding:24px;max-width:400px;width:100%;box-shadow:0 20px 50px rgb(0 0 0/.4)}
+#dlg h3{margin:0 0 6px;font-size:24px;line-height:1.15}
+#dlg p{margin:0 0 18px;color:var(--soft)}
+#dlg .row{display:flex;gap:10px;flex-wrap:wrap}
+#dlg .row button{flex:1;font-weight:700;padding:0 14px;background:var(--line)}
+#dlg .row button.ok{background:var(--felt);color:#fff}
+#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#1d1416;color:#fff;padding:10px 18px;border-radius:99px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:10;white-space:nowrap}
+#toast.show{opacity:1}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home" href="./">← All games</a>
+  <header>
+    <h1><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="3" y="5" width="40" height="40" rx="9" fill="#00000033"/><rect x="4" y="2" width="40" height="40" rx="9" fill="#fbf6ec"/><g fill="#1d1416"><circle cx="14" cy="12" r="4"/><circle cx="34" cy="12" r="4"/><circle cx="24" cy="22" r="4"/><circle cx="14" cy="32" r="4"/><circle cx="34" cy="32" r="4"/></g></svg>5000</h1>
+    <div class="set">
+      <label>Target <input id="target" type="number" min="500" step="500" inputmode="numeric"></label>
+      <label title="Points that would go over the target don't count"><input id="exact" type="checkbox"> Must land exactly</label>
+    </div>
+  </header>
+
+  <form class="add" id="addForm">
+    <input id="pname" placeholder="Player name" autocomplete="off" maxlength="24" aria-label="Player name">
+    <button type="submit">Add player</button>
+  </form>
+  <div class="recent" id="recent" hidden><span class="rl">Recent players:</span><span id="recentList" style="display:contents"></span></div>
+
+  <p class="turn" id="turn"></p>
+  <div class="grid" id="grid"></div>
+
+  <section class="log" id="logBox" hidden>
+    <h2>Recent moves</h2>
+    <ol id="log"></ol>
+  </section>
+</div>
+
+<div class="bar-bottom"><div class="in">
+  <button id="undo">↶ Undo</button>
+  <button id="next" class="next">Next player →</button>
+  <button id="restart">Restart</button>
+  <button id="newgame">New game</button>
+</div></div>
+
+<div id="dlg" hidden><div class="box" role="dialog" aria-modal="true" aria-labelledby="dlgT">
+  <h3 id="dlgT"></h3><p id="dlgP"></p>
+  <div class="row"><button id="dlgNo"></button><button id="dlgOk" class="ok"></button></div>
+</div></div>
+<div id="toast" role="status"></div>
+
+<script>
+{
+const KEY='score5000-v1';
+const $=id=>document.getElementById(id);
+const fmt=n=>n.toLocaleString('de-CH');
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let S=null,H=[],editing=null,popId=null,toastT;
+try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!Array.isArray(S.players))S={players:[],cur:0,target:5000,exact:false,log:[]};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const snap=()=>{H.push(JSON.stringify(S));if(H.length>300)H.shift()};
+const P=id=>S.players.find(p=>p.id===id);
+
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1800)}
+
+function ask(title,text,ok,no,fn){
+  $('dlgT').textContent=title;$('dlgP').textContent=text;
+  $('dlgOk').textContent=ok;$('dlgNo').textContent=no;
+  $('dlg').hidden=false;$('dlgOk').focus();
+  $('dlgOk').onclick=()=>{$('dlg').hidden=true;fn&&fn()};
+  $('dlgNo').onclick=()=>{$('dlg').hidden=true};
+}
+
+function render(){
+  $('target').value=S.target;$('exact').checked=S.exact;
+  const n=S.players.length;
+  if(S.cur>=n)S.cur=0;
+  const sorted=[...S.players].map(p=>p.score).sort((a,b)=>b-a);
+  const top=sorted[0]||0;
+  $('grid').innerHTML=n?S.players.map((p,i)=>{
+    const rank=sorted.indexOf(p.score)+1;
+    const pct=Math.min(100,p.score/S.target*100);
+    const left=S.target-p.score;
+    const name=editing===p.id
+      ?`<input class="name-in" data-id="${p.id}" value="${esc(p.name)}" maxlength="24" aria-label="Rename">`
+      :`<button class="name" data-act="rename" title="Tap to rename">${esc(p.name)}</button>`;
+    return `<article class="card${i===S.cur?' on':''}${p.score>0&&p.score===top?' lead':''}" data-id="${p.id}">
+      <div class="top"><span class="rank">${n>1?'#'+rank:'Solo'}</span>${name}<button class="x" data-act="del" aria-label="Remove ${esc(p.name)}">×</button></div>
+      <div class="score${popId===p.id?' pop':''}">${fmt(p.score)}</div>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <div class="left">${left>0?fmt(left)+' to go':'Reached '+fmt(S.target)+'!'}</div>
+      <div class="btns"><button data-act="add" data-v="50">+50</button><button data-act="add" data-v="100">+100</button><button class="k" data-act="add" data-v="1000">+1000</button></div>
+      <form class="custom" data-id="${p.id}"><input inputmode="numeric" autocomplete="off" maxlength="7" placeholder="Other amount, e.g. 900" aria-label="Other amount for ${esc(p.name)}"><button type="submit">Add</button></form>
+      <button class="minus" data-act="add" data-v="-50">−50 (fix a mistake)</button>
+    </article>`}).join('')
+    :`<div class="empty" style="grid-column:1/-1"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="4" y="4" width="40" height="40" rx="9" fill="#fbf6ec"/><g fill="#a3192b"><circle cx="14" cy="14" r="4"/><circle cx="24" cy="24" r="4"/><circle cx="34" cy="34" r="4"/></g></svg><div style="font-size:19px;font-weight:700">No players yet</div><div>Type a name above and hit Add player.</div></div>`;
+  popId=null;
+  const cur=S.players[S.cur];
+  $('turn').innerHTML=cur&&n>1?`Turn: <b>${esc(cur.name)}</b> · tap a card to change`:'';
+  $('next').disabled=n<2;$('undo').disabled=!H.length;
+  $('restart').disabled=!n;$('newgame').disabled=!n;
+  $('logBox').hidden=!S.log.length;
+  $('log').innerHTML=S.log.slice(0,14).map(l=>`<li class="${l.d<0?'neg':''}">${esc(l.n)} ${l.d>0?'+':'−'}${Math.abs(l.d)} → ${fmt(l.t)}</li>`).join('');
+  if(editing){const el=document.querySelector('.name-in');if(el){el.focus();el.select()}}
+  renderRecent();
+  save();
+}
+
+function addPoints(id,v){
+  const p=P(id);if(!p)return;
+  if(v<0&&p.score===0)return toast('Already at 0');
+  if(v>0&&S.exact&&p.score+v>S.target)return toast(`Over ${fmt(S.target)} — doesn't count`);
+  snap();
+  const was=p.score;
+  p.score=Math.max(0,p.score+v);
+  S.log.unshift({n:p.name,d:p.score-was,t:p.score});S.log.length=Math.min(S.log.length,60);
+  popId=id;render();
+  if(v>0&&was<S.target&&p.score>=S.target){
+    ask(`🎉 ${p.name} wins!`,`${fmt(p.score)} points. Play another round with the same players?`,'Play again','Keep playing',restart);
+  }
+}
+
+function restart(){snap();S.players.forEach(p=>p.score=0);S.cur=0;S.log=[];render();toast('Scores reset — same players')}
+
+// Recent players: shared with the Yatzy page (same site), kept on this device.
+const RKEY='dice-recent-players';
+let recent=[];try{recent=JSON.parse(localStorage.getItem(RKEY))||[]}catch(e){}
+if(!Array.isArray(recent))recent=[];
+const remember=name=>{
+  if(/^Player \d+$/.test(name))return;
+  recent=[name,...recent.filter(r=>r.toLowerCase()!==name.toLowerCase())].slice(0,30);
+  try{localStorage.setItem(RKEY,JSON.stringify(recent))}catch(e){}
+};
+function renderRecent(){
+  const inGame=new Set(S.players.map(p=>p.name.toLowerCase()));
+  const list=recent.filter(r=>!inGame.has(r.toLowerCase()));
+  $('recent').hidden=!list.length;
+  $('recentList').innerHTML=list.map(r=>`<span class="chip"><button type="button" data-add="${esc(r)}">+ ${esc(r)}</button><button type="button" class="forget" data-forget="${esc(r)}" aria-label="Forget ${esc(r)}" title="Forget">×</button></span>`).join('');
+}
+$('recent').addEventListener('click',e=>{
+  const a=e.target.closest('[data-add]'),f=e.target.closest('[data-forget]');
+  if(a)addPlayer(a.dataset.add);
+  else if(f){recent=recent.filter(r=>r!==f.dataset.forget);try{localStorage.setItem(RKEY,JSON.stringify(recent))}catch(e){}renderRecent()}
+});
+
+function addPlayer(name){
+  if(S.players.length>=16)return toast('16 players max');
+  snap();
+  S.players.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,score:0});
+  remember(name);render();
+}
+$('addForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  addPlayer($('pname').value.trim()||'Player '+(S.players.length+1));
+  $('pname').value='';$('pname').focus();
+});
+
+$('grid').addEventListener('submit',e=>{
+  const f=e.target.closest('form.custom');if(!f)return;
+  e.preventDefault();
+  const raw=f.querySelector('input').value.replace(/[\s'’.,]/g,'').replace('−','-');
+  if(!/^[+-]?\d+$/.test(raw)||!+raw)return toast('Type a number, e.g. 900');
+  addPoints(f.dataset.id,+raw);
+});
+
+$('grid').addEventListener('click',e=>{
+  const card=e.target.closest('.card');if(!card)return;
+  const id=card.dataset.id,b=e.target.closest('button');
+  if(!b){if(!e.target.closest('input')){const i=S.players.findIndex(p=>p.id===id);if(i!==S.cur){S.cur=i;render()}}return}
+  const act=b.dataset.act;
+  if(act==='add')addPoints(id,+b.dataset.v);
+  else if(act==='rename'){editing=id;render()}
+  else if(act==='del'){const p=P(id);ask(`Remove ${p.name}?`,`Their ${fmt(p.score)} points will be removed too (you can undo).`,'Remove','Cancel',()=>{
+    snap();const i=S.players.indexOf(p);S.players.splice(i,1);if(i<S.cur)S.cur--;render()})}
+});
+
+const finishRename=el=>{
+  const p=P(el.dataset.id);editing=null;
+  const v=el.value.trim();
+  if(p&&v&&v!==p.name){snap();p.name=v;remember(v)}
+  render();
+};
+$('grid').addEventListener('keydown',e=>{
+  if(!e.target.classList.contains('name-in'))return;
+  if(e.key==='Enter')finishRename(e.target);
+  if(e.key==='Escape'){editing=null;render()}
+});
+$('grid').addEventListener('focusout',e=>{if(e.target.classList.contains('name-in')&&editing)finishRename(e.target)});
+
+$('next').onclick=()=>{if(S.players.length<2)return;snap();S.cur=(S.cur+1)%S.players.length;render()};
+$('undo').onclick=()=>{if(!H.length)return;S=JSON.parse(H.pop());editing=null;render();toast('Undone')};
+$('restart').onclick=()=>ask('Restart the game?','All scores go back to 0. Players stay.','Restart','Cancel',restart);
+$('newgame').onclick=()=>ask('Start a new game?','Removes all players and scores.','New game','Cancel',()=>{snap();S.players=[];S.cur=0;S.log=[];render()});
+$('target').addEventListener('change',e=>{const v=Math.round(+e.target.value);if(v>=50){S.target=v;render()}else e.target.value=S.target});
+$('exact').addEventListener('change',e=>{S.exact=e.target.checked;render()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('dlg').hidden)$('dlg').hidden=true});
+
+S.players.slice().reverse().forEach(p=>{if(!recent.some(r=>r.toLowerCase()===p.name.toLowerCase()))remember(p.name)});
+render();
+}
+</script>
+</body>
+</html>
