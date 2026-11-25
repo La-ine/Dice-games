@@ -912,6 +912,7 @@
   </div>
   <div id="toast" role="status"></div>
 
+  <script src="teamwork.js"></script>
   <script>
     {
       const KEY = 'yatzy-v1', BONUS = 25;
@@ -1085,6 +1086,9 @@
       }
       $('addForm').addEventListener('submit', e => {
         e.preventDefault();
+        if ($('pname').value.replace(/\s+/g, '').toLowerCase() === 'teamwork' && window.teamworkEgg) {
+          $('pname').value = ''; $('pname').blur(); return window.teamworkEgg();
+        }
         addPlayer($('pname').value.trim() || 'Player ' + (S.players.length + 1));
         $('pname').value = ''; $('pname').focus();
       });
